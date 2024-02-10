@@ -1,4 +1,3 @@
-#![feature(lang_items)]
 #![no_main]
 #![no_std]
 
@@ -6,6 +5,9 @@ use core::arch::asm;
 use core::panic::PanicInfo;
 
 //------------------------------------------------------------------------------
+
+// Overriding/removing functions below is
+// a potential future optimization for debug builds
 
 // #[lang = "panic_fmt"]
 // extern "C" fn rust_begin_panic() -> ! {
@@ -20,6 +22,10 @@ use core::panic::PanicInfo;
 
 // #[no_mangle]
 // pub extern "C" fn rust_eh_unregister_frames() {}
+
+
+// Overriding the panic hanlder alone given enourmoous optimization
+// in release builds
 
 #[panic_handler]
 fn panic(_panic: &PanicInfo<'_>) -> ! {
@@ -53,9 +59,18 @@ fn set_reg(base: u32, offt: u32, bitlen: u8, bitidx: u8, bitstate: u8) {
     }
 }
 
+// Completely abstract delay, cycles doesn't meen much in the real world
 fn delay(cycles: u32) {
-    // Assuming for() loop takes roughly 2 cycles to check/increment the counter
-    for _ in 0.. (cycles >> 1) {
+    // loops are optimized differently so to give some consistency the counter
+    // must be adjusted
+
+    let proper_cycles = if cfg!(debug_assertions) {
+        cycles >> 1
+    } else {
+        cycles * 4
+    };
+
+    for _ in 0..proper_cycles {
         unsafe {
             asm!("nop");
         }
@@ -124,4 +139,3 @@ pub unsafe extern "C" fn Reset() -> ! {
     }
 }
 
-//------------------------------------------------------------------------------
